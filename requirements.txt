@@ -5,3 +5,4 @@ numpy
 matplotlib
 newspaper3k
 Sastrawi
+lxml_html_clean
