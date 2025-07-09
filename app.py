@@ -10,17 +10,25 @@ import re
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 
-# === Setup ===
-st.set_page_config(page_title="Sistem Penyaringan", layout="wide")
-st.title("🤖 Sistem Penyaringan Informasi: Menggunakan Ruang Vektor")
-st.markdown("---")
+# === Navigation Setup ===
+if 'page' not in st.session_state:
+    st.session_state.page = 'input'
+if 'query' not in st.session_state:
+    st.session_state.query = ""
+if 'threshold' not in st.session_state:
+    st.session_state.threshold = 0.2
+if 'user_links' not in st.session_state:
+    st.session_state.user_links = ""
+if 'user_text' not in st.session_state:
+    st.session_state.user_text = ""
 
-# === Stopwords dan stemmer ===
-stop_factory = StopWordRemoverFactory()
-stopwords = set(stop_factory.get_stop_words())
-stemmer = StemmerFactory().create_stemmer()
+def go_to_result():
+    st.session_state.page = 'result'
 
-# === URL berita default ===
+def go_to_input():
+    st.session_state.page = 'input'
+
+# === Default News URLs ===
 urls_default = [
     "https://tekno.kompas.com/read/2024/03/22/19000027/ai-kemacetan",
     "https://inet.detik.com/cyberlife/d-6965200",
@@ -33,7 +41,11 @@ urls_default = [
     "https://finance.detik.com/berita-ekonomi-bisnis/d-7004421"
 ]
 
-# === Fungsi preprocessing ===
+# === Preprocessing ===
+stop_factory = StopWordRemoverFactory()
+stopwords = set(stop_factory.get_stop_words())
+stemmer = StemmerFactory().create_stemmer()
+
 def preprocess(text):
     text = text.lower()
     text = re.sub(r'\d+', '', text)
@@ -41,8 +53,7 @@ def preprocess(text):
     words = text.split()
     words = [w for w in words if w not in stopwords]
     text = ' '.join(words)
-    text = stemmer.stem(text)
-    return text
+    return stemmer.stem(text)
 
 @st.cache_data(show_spinner="🔄 Mengambil dan memproses berita...")
 def fetch_articles(urls):
@@ -61,33 +72,40 @@ def fetch_articles(urls):
             articles.append("GAGAL MENGAMBIL ARTIKEL DARI LINK INI")
     return articles
 
-# === Input pengguna ===
-query = st.text_input("🔍 Topik pencarian", "pemanfaatan AI di sektor publik dan swasta di Indonesia")
-threshold = st.slider("🎯 Threshold Kemiripan", 0.0, 1.0, 0.2, 0.05)
-user_links = st.text_area("🔗 Masukkan link berita (pisahkan dengan baris baru)")
-user_text = st.text_area("📝 Atau masukkan teks/paragraf secara langsung (opsional)")
+# === Input Page ===
+if st.session_state.page == 'input':
+    st.set_page_config(page_title="Sistem Penyaringan", layout="wide")
+    st.title("🤖 Sistem Penyaringan Informasi")
+    st.markdown("---")
+    
+    st.session_state.query = st.text_input("🔍 Topik pencarian", st.session_state.query)
+    st.session_state.threshold = st.slider("🎯 Threshold Kemiripan", 0.0, 1.0, st.session_state.threshold, 0.05)
+    st.session_state.user_links = st.text_area("🔗 Masukkan link berita (pisahkan dengan baris baru)", st.session_state.user_links)
+    st.session_state.user_text = st.text_area("📝 Atau masukkan teks/paragraf secara langsung (opsional)", st.session_state.user_text)
 
-# === Jalankan pencarian ===
-if st.button("🚀 Jalankan Penyaringan"):
-    if user_text.strip():
-        # Pecah menjadi paragraf (dua baris kosong atau satu baris kosong)
-        paragraf_list = [p.strip() for p in user_text.strip().split('\n\n') if len(p.strip()) > 0]
+    if st.button("🚀 Jalankan Penyaringan"):
+        go_to_result()
+
+# === Result Page ===
+elif st.session_state.page == 'result':
+    st.title("📄 Hasil Penyaringan Informasi")
+
+    if st.session_state.user_text.strip():
+        paragraf_list = [p.strip() for p in st.session_state.user_text.strip().split('\n\n') if len(p.strip()) > 0]
         documents_clean = [preprocess(p) for p in paragraf_list]
         urls = [f"Paragraf {i+1}" for i in range(len(paragraf_list))]
     else:
-        urls = [link.strip() for link in user_links.strip().splitlines() if link.strip()] or urls_default
+        urls = [link.strip() for link in st.session_state.user_links.strip().splitlines() if link.strip()] or urls_default
         documents_clean = fetch_articles(urls)
 
-    actual_relevant = np.array([1] * len(documents_clean))
-
+    query_clean = preprocess(st.session_state.query)
     vectorizer = TfidfVectorizer()
     doc_vectors = vectorizer.fit_transform(documents_clean)
-    query_clean = preprocess(query)
     query_vector = vectorizer.transform([query_clean])
     similarity_scores = cosine_similarity(query_vector, doc_vectors).flatten()
-    predicted_relevant = similarity_scores >= threshold
+    predicted_relevant = similarity_scores >= st.session_state.threshold
+    actual_relevant = np.array([1] * len(documents_clean))
 
-    # === Evaluasi ===
     precision = precision_score(actual_relevant, predicted_relevant, zero_division=0)
     recall = recall_score(actual_relevant, predicted_relevant, zero_division=0)
     f1 = f1_score(actual_relevant, predicted_relevant, zero_division=0)
@@ -116,17 +134,14 @@ if st.button("🚀 Jalankan Penyaringan"):
         ax.set_ylim(0, 1)
         st.pyplot(fig)
 
-    # === Pie chart ===
     st.subheader("📈 Distribusi Relevansi")
     relevan_count = sum(predicted_relevant)
     tidak_relevan_count = len(predicted_relevant) - relevan_count
-    pie_labels = ['Relevan', 'Tidak Relevan']
-    pie_sizes = [relevan_count, tidak_relevan_count]
-    pie_colors = ['#66bb6a', '#ef5350']
-
     fig2, ax2 = plt.subplots()
-    ax2.pie(pie_sizes, labels=pie_labels, autopct='%1.1f%%', startangle=90, colors=pie_colors)
+    ax2.pie([relevan_count, tidak_relevan_count], labels=['Relevan', 'Tidak Relevan'], autopct='%1.1f%%', startangle=90, colors=['#66bb6a', '#ef5350'])
     ax2.axis('equal')
     st.pyplot(fig2)
 
-    st.success("✅ Penyaringan dan evaluasi selesai.")
+    st.markdown("---")
+    if st.button("🔙 Kembali ke Awal"):
+        go_to_input()
