@@ -13,7 +13,7 @@ from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 # Simpan akun pengguna
 USERS = {
     "admin": "admin",
-    "user1": "1234"
+    "user": "1234"
 }
 
 # Fungsi login
