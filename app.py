@@ -12,9 +12,8 @@ from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFacto
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 
 USERS = {
-    "User1": "1111",
-    "User2": "1234"
-}
+    "User": "1234"
+    }
 
 def login():
     st.title("🔐 Login Sistem Penyaringan")
