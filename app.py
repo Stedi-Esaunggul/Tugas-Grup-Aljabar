@@ -1,3 +1,4 @@
+
 import streamlit as st
 from newspaper import Article
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -10,13 +11,11 @@ import re
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 
-# Simpan akun pengguna
 USERS = {
     "admin": "admin",
-    "user": "1234"
+    "User": "1234"
 }
 
-# Fungsi login
 def login():
     st.title("🔐 Login Sistem Penyaringan")
     username = st.text_input("Username")
@@ -25,12 +24,21 @@ def login():
         if username in USERS and USERS[username] == password:
             st.session_state.logged_in = True
             st.session_state.username = username
-            st.success("Login berhasil!")
+            st.success("✅ Login berhasil!")
             st.rerun()
         else:
-            st.error("Username atau password salah.")
+            st.error("❌ Username atau password salah.")
 
-# === Navigation Setup ===
+def logout():
+    st.session_state.logged_in = False
+    st.session_state.username = ""
+    st.session_state.page = "input"
+    st.rerun()
+
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'username' not in st.session_state:
+    st.session_state.username = ""
 if 'page' not in st.session_state:
     st.session_state.page = 'input'
 if 'query' not in st.session_state:
@@ -42,13 +50,16 @@ if 'user_links' not in st.session_state:
 if 'user_text' not in st.session_state:
     st.session_state.user_text = ""
 
+if not st.session_state.logged_in:
+    login()
+    st.stop()
+
 def go_to_result():
     st.session_state.page = 'result'
 
 def go_to_input():
     st.session_state.page = 'input'
 
-# === Default News URLs ===
 urls_default = [
     "https://tekno.kompas.com/read/2024/03/22/19000027/ai-kemacetan",
     "https://inet.detik.com/cyberlife/d-6965200",
@@ -61,7 +72,6 @@ urls_default = [
     "https://finance.detik.com/berita-ekonomi-bisnis/d-7004421"
 ]
 
-# === Preprocessing ===
 stop_factory = StopWordRemoverFactory()
 stopwords = set(stop_factory.get_stop_words())
 stemmer = StemmerFactory().create_stemmer()
@@ -72,8 +82,7 @@ def preprocess(text):
     text = re.sub(r'[^\w\s]', '', text)
     words = text.split()
     words = [w for w in words if w not in stopwords]
-    text = ' '.join(words)
-    return stemmer.stem(text)
+    return stemmer.stem(' '.join(words))
 
 @st.cache_data(show_spinner="🔄 Mengambil dan memproses berita...")
 def fetch_articles(urls):
@@ -92,20 +101,15 @@ def fetch_articles(urls):
             articles.append("GAGAL MENGAMBIL ARTIKEL DARI LINK INI")
     return articles
 
-# Cek login
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
-
-if not st.session_state.logged_in:
-    login()
-    st.stop()
-    
-# === Input Page ===
 if st.session_state.page == 'input':
     st.set_page_config(page_title="Sistem Penyaringan", layout="wide")
+    st.sidebar.success(f"Hai, {st.session_state.username}")
+    if st.sidebar.button("🚪 Logout"):
+        logout()
+
     st.title("🤖 Sistem Penyaringan Informasi")
     st.markdown("---")
-    
+
     st.session_state.query = st.text_input("🔍 Topik pencarian", st.session_state.query)
     st.session_state.threshold = st.slider("🎯 Threshold Kemiripan", 0.0, 1.0, st.session_state.threshold, 0.05)
     st.session_state.user_links = st.text_area("🔗 Masukkan link berita (pisahkan dengan baris baru)", st.session_state.user_links)
@@ -114,8 +118,11 @@ if st.session_state.page == 'input':
     if st.button("🚀 Jalankan Penyaringan"):
         go_to_result()
 
-# === Result Page ===
 elif st.session_state.page == 'result':
+    st.sidebar.success(f"Hai, {st.session_state.username}")
+    if st.sidebar.button("🚪 Logout"):
+        logout()
+
     st.title("📄 Hasil Penyaringan Informasi")
 
     if st.session_state.user_text.strip():
