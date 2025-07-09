@@ -12,8 +12,8 @@ from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFacto
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 
 USERS = {
-    "admin": "admin",
-    "User": "1234"
+    "User1": "1111",
+    "User2": "1234"
 }
 
 def login():
