@@ -149,7 +149,7 @@ elif st.session_state.page == 'result':
     for i, source in enumerate(urls):
         score = similarity_scores[i]
         status = "✅ Relevan" if predicted_relevant[i] else "❌ Tidak Relevan"
-        alasan = "" if predicted_relevant[i] else "Artikel ini mungkin tidak memiliki kata kunci yang cukup kuat sesuai query."
+        alasan = "Artikel ada relevan" if predicted_relevant[i] else "Artikel ini mungkin tidak memiliki kata kunci yang cukup kuat sesuai query."
         st.markdown(f"**{status}** (Score: `{score:.2f}`)  \n🔗 {source}  \n_Alasan_: {alasan}")
         results.append({"Sumber": source, "Score": score, "Status": status, "Alasan": alasan})
 
